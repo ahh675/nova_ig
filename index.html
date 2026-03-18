@@ -48,8 +48,17 @@
         <main class="interaction-core">
             <header class="app-header">
                 <div class="header-left">
-                    <h1 class="glitch-text">NOVA</h1>
-                    <p id="status-text" class="fade-in">System Ready</p>
+                    <button id="menu-toggle" class="btn-icon" title="Menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="logo-area">
+                        <h1 class="glitch-text">NOVA</h1>
+                        <p id="status-text" class="fade-in">System Ready</p>
+                    </div>
                 </div>
                 <div class="header-controls">
                     <button id="theme-toggle" class="btn-icon" title="Toggle Dark/Light Mode">
@@ -133,6 +142,20 @@
         <!-- System Intelligence Dashboard (Side/Bottom) -->
         <aside class="system-dashboard">
             <!-- Analytics Card -->
+            <section class="dashboard-card user-profile-card">
+                <div class="card-header">
+                    <h3>User Profile</h3>
+                    <button id="auth-btn" class="btn-text">Connect</button>
+                </div>
+                <div id="user-info" class="user-info-grid">
+                    <img id="user-photo" src="https://ui-avatars.com/api/?name=Nova&background=00d2ff&color=fff" alt="User">
+                    <div class="user-details">
+                        <span id="user-display-name">Guest Mode</span>
+                        <span id="user-email">cloud-brain@nova.ai</span>
+                    </div>
+                </div>
+            </section>
+
             <section class="dashboard-card analytics-card">
                 <div class="card-header">
                     <h3>Session Analytics</h3>
@@ -251,6 +274,50 @@
             </div>
         </aside>
 
+        <!-- Settings Drawer (Hamburger Menu) -->
+        <div id="settings-drawer" class="drawer">
+            <div class="drawer-content glass">
+                <div class="drawer-header">
+                    <h2>Advanced Settings</h2>
+                    <button id="close-drawer" class="btn-icon">✕</button>
+                </div>
+                
+                <div class="drawer-section">
+                    <h3>Intelligence Bridge (LLMs)</h3>
+                    <div class="input-group">
+                        <label for="drawer-groq-key">Groq API Key</label>
+                        <input type="password" id="drawer-groq-key" placeholder="gsk_...">
+                    </div>
+                    <div class="input-group">
+                        <label for="drawer-secondary-key">Secondary AI Key (OpenAI/Fallback)</label>
+                        <input type="password" id="drawer-secondary-key" placeholder="sk-...">
+                    </div>
+                </div>
+
+                <div class="drawer-section">
+                    <h3>Cloud Brain (Firebase)</h3>
+                    <p class="section-hint">Used for secure cross-device memory sync.</p>
+                    <div class="input-group">
+                        <label for="drawer-fb-key">Firebase API Key</label>
+                        <input type="password" id="drawer-fb-key" placeholder="AIza...">
+                    </div>
+                    <div class="input-group">
+                        <label for="drawer-fb-pid">Project ID</label>
+                        <input type="text" id="drawer-fb-pid" placeholder="nova-xxxx">
+                    </div>
+                    <button id="save-all-settings" class="btn-primary">Save & Restart</button>
+                </div>
+
+                <div class="drawer-section">
+                    <h3>Interface</h3>
+                    <div class="setting-row">
+                        <span>Theme Preference</span>
+                        <button id="drawer-theme-toggle" class="btn-icon">🌙</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Enrollment Modal -->
         <div id="enrollment-modal" class="modal">
             <div class="modal-content glass">
@@ -274,6 +341,7 @@
 
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="config.js"></script>
     <script src="app.js"></script>

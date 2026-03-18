@@ -33,7 +33,18 @@ const closeEnroll = document.getElementById('close-enroll');
 const currentPhrase = document.getElementById('current-phrase');
 const enrollProgress = document.getElementById('enroll-progress');
 const startEnrollStep = document.getElementById('start-enroll-step');
-const enrollStepText = document.getElementById('enroll-step-text');
+const enrollmentStepText = document.getElementById('enroll-step-text');
+
+// Drawer & Settings DOM
+const menuToggle = document.getElementById('menu-toggle');
+const settingsDrawer = document.getElementById('settings-drawer');
+const closeDrawer = document.getElementById('close-drawer');
+const saveSettingsBtn = document.getElementById('save-all-settings');
+const drawerGroqKey = document.getElementById('drawer-groq-key');
+const drawerSecondaryKey = document.getElementById('drawer-secondary-key');
+const drawerFbKey = document.getElementById('drawer-fb-key');
+const drawerFbPid = document.getElementById('drawer-fb-pid');
+const drawerThemeToggle = document.getElementById('drawer-theme-toggle');
 
 let isEnrolling = false;
 let isListening = false;
@@ -208,47 +219,70 @@ updateLockUI();
 updateNetworkStatus();
 populateVoiceList();
 
-if (fbConfig) initFirebase(JSON.stringify(fbConfig));
-
-fbConfigInput.addEventListener('input', () => {
-    const val = fbConfigInput.value.trim();
-    localStorage.setItem('nova_fb_config', val);
-    if (val) initFirebase(val);
-});
-// Hide inputs if keys are pre-loaded in config.js
-if (groqKey) {
-    apiKeyInput.placeholder = "Personal Bridge Active";
-    apiKeyInput.disabled = true;
-}
-if (fbConfig) {
-    fbConfigInput.placeholder = "Cloud Brain Active";
-    fbConfigInput.disabled = true;
+// Start Firebase with highest priority config
+function getEffectiveFirebaseConfig() {
+    const localKey = localStorage.getItem('nova_fb_key');
+    const localPid = localStorage.getItem('nova_fb_pid');
+    
+    // Default from config.js
+    let config = fbConfig ? {...fbConfig} : {};
+    
+    // Override with localStorage if present
+    if (localKey) config.apiKey = localKey;
+    if (localPid) config.projectId = localPid;
+    
+    return config.apiKey && config.projectId ? config : null;
 }
 
-async function initFirebase(configStr) {
+const effectiveConfig = getEffectiveFirebaseConfig();
+if (effectiveConfig) initFirebase(effectiveConfig);
+
+async function initFirebase(config) {
     try {
-        const config = JSON.parse(configStr);
         if (!firebase.apps.length) {
             firebase.initializeApp(config);
         }
         
         firebaseActive = true;
         const fs = firebase.firestore();
+        const auth = firebase.auth();
+        
         indCloud.classList.add('active');
         indCloud.title = "Cloud Active";
+        
+        // Auth State Observer
+        auth.onAuthStateChanged(user => {
+            const authBtn = document.getElementById('auth-btn');
+            const userDisplayName = document.getElementById('user-display-name');
+            const userEmail = document.getElementById('user-email');
+            const userPhoto = document.getElementById('user-photo');
 
-        // Real-time Sync from Cloud
-        // Using a generic 'master' user doc for now, ideally tied to a unique ID
-        const userId = userMemory.name.toLowerCase() || 'default_user';
-        fs.collection('users').doc(userId).onSnapshot((doc) => {
-            if (doc.exists) {
-                const cloudData = doc.data().memory;
-                if (JSON.stringify(cloudData) !== JSON.stringify(userMemory)) {
-                    userMemory = cloudData;
-                    setToDB('user_memory', userMemory);
-                    updateMemoryUI();
-                    console.log("Cloud memory merged.");
-                }
+            if (user) {
+                userDisplayName.textContent = user.displayName || "User";
+                userEmail.textContent = user.email;
+                if (user.photoURL) userPhoto.src = user.photoURL;
+                authBtn.textContent = "Logout";
+                indCloud.classList.add('active');
+                attachCloudSync(user); // Start real-time sync for this specific user
+            } else {
+                userDisplayName.textContent = "Guest Mode";
+                userEmail.textContent = "cloud-brain@nova.ai";
+                userPhoto.src = "https://ui-avatars.com/api/?name=Nova&background=00d2ff&color=fff";
+                authBtn.textContent = "Connect";
+            }
+        });
+
+        // Auth Action
+        document.getElementById('auth-btn').addEventListener('click', () => {
+            const currentAuth = firebase.auth();
+            if (currentAuth.currentUser) {
+                currentAuth.signOut().then(() => location.reload()); // Reload to clear session state safely
+            } else {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                currentAuth.signInWithPopup(provider).catch(e => {
+                    console.error("Auth Error:", e);
+                    statusText.textContent = "Auth Failed: " + e.message;
+                });
             }
         });
 
@@ -260,16 +294,41 @@ async function initFirebase(configStr) {
     }
 }
 
+function attachCloudSync(user) {
+    if (!firebaseActive || !user) return;
+    const fs = firebase.firestore();
+    
+    // Use UID for secure isolation
+    fs.collection('users').doc(user.uid).onSnapshot((doc) => {
+        if (doc.exists) {
+            const cloudData = doc.data().memory;
+            if (JSON.stringify(cloudData) !== JSON.stringify(userMemory)) {
+                userMemory = cloudData;
+                setToDB('user_memory', userMemory);
+                updateMemoryUI();
+                console.log("Cloud memory synced (UID: " + user.uid + ")");
+            }
+        } else {
+            // First time sync for this user - push local data up
+            syncToCloud();
+        }
+    });
+}
+
 async function syncToCloud() {
     if (!firebaseActive) return;
+    const user = firebase.auth().currentUser;
+    if (!user) return; // Only sync if logged in now
+
     try {
         const fs = firebase.firestore();
-        const userId = userMemory.name.toLowerCase() || 'default_user';
-        await fs.collection('users').doc(userId).set({
+        await fs.collection('users').doc(user.uid).set({
             memory: userMemory,
-            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            email: user.email,
+            displayName: user.displayName
         }, { merge: true });
-        console.log("Memory synced to cloud.");
+        console.log("Memory synced to cloud (UID: " + user.uid + ")");
     } catch (e) {
         console.error("Cloud Sync Error:", e);
     }
@@ -855,8 +914,11 @@ async function fetchGlobalInfo(query, imageData = null) {
         return "I'm in limbo mode, boss. No internet connection. I can only handle local system commands right now.";
     }
 
-    const userKey = groqKey || apiKeyInput.value.trim();
-    if (!userKey) return "No intelligence bridge found. Please provide an API key.";
+    // Use drawer key first, then config key, then input bar key
+    const userKey = localStorage.getItem('nova_groq_key') || (typeof CONFIG !== 'undefined' ? CONFIG.GROQ_API_KEY : '') || apiKeyInput.value.trim();
+    const secondaryKey = localStorage.getItem('nova_secondary_key') || '';
+    
+    if (!userKey && !secondaryKey) return "No intelligence bridge found. Please provide an API key in the Settings menu.";
 
     const systemPrompt = `You are Nova, an AI assistant with the personality of FRIDAY (Iron Man).
     User: ${userMemory.name}.
@@ -1343,6 +1405,43 @@ resetBiometricsBtn.addEventListener('click', () => {
     updateLockUI(); // BUG FIX: Sync UI 
     statusText.textContent = "Signature Wiped. Re-enrollment required.";
     playBeep(220, 0.2);
+});
+
+// ============================================================
+// FEATURE: Settings Drawer & API Management
+// ============================================================
+menuToggle.addEventListener('click', () => {
+    // Fill values from memory/config
+    drawerGroqKey.value = localStorage.getItem('nova_groq_key') || (typeof CONFIG !== 'undefined' ? CONFIG.GROQ_API_KEY : '');
+    drawerSecondaryKey.value = localStorage.getItem('nova_secondary_key') || '';
+    drawerFbKey.value = localStorage.getItem('nova_fb_key') || (typeof CONFIG !== 'undefined' ? CONFIG.FIREBASE_CONFIG.apiKey : '');
+    drawerFbPid.value = localStorage.getItem('nova_fb_pid') || (typeof CONFIG !== 'undefined' ? CONFIG.FIREBASE_CONFIG.projectId : '');
+    
+    settingsDrawer.classList.add('active');
+});
+
+closeDrawer.addEventListener('click', () => settingsDrawer.classList.remove('active'));
+
+saveSettingsBtn.addEventListener('click', () => {
+    localStorage.setItem('nova_groq_key', drawerGroqKey.value.trim());
+    localStorage.setItem('nova_secondary_key', drawerSecondaryKey.value.trim());
+    localStorage.setItem('nova_fb_key', drawerFbKey.value.trim());
+    localStorage.setItem('nova_fb_pid', drawerFbPid.value.trim());
+    
+    // Play confirm sound
+    playBeep(880, 0.1);
+    
+    settingsDrawer.classList.remove('active');
+    statusText.textContent = "Settings Saved. Reloading systems...";
+    setTimeout(() => location.reload(), 1000);
+});
+
+// Update fetchGlobalInfo to use these overriden keys
+// (This would be inside fetchGlobalInfo implementation, updating it now)
+
+drawerThemeToggle.addEventListener('click', () => {
+    themeToggle.click(); // Reuse existing logic
+    drawerThemeToggle.textContent = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
 });
 
 micBtn.addEventListener('click', async () => {
