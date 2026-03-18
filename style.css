@@ -642,6 +642,63 @@ body.light-mode ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
     color: var(--text-primary);
     font-size: 0.85rem;
 }
+/* ============ HEADER ============ */
+.app-header {
+    width: 100%;
+    padding: 1rem 2rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+.header-main-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.2); /* Added background for glass effect */
+    backdrop-filter: blur(10px); /* Added blur for glass effect */
+    -webkit-backdrop-filter: blur(10px); /* Added webkit prefix for blur */
+}
+.header-logo h1 {
+    font-size: 1.5rem;
+    letter-spacing: 4px;
+    margin: 0;
+    font-weight: 800;
+}
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.status-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    background: rgba(0, 210, 255, 0.1);
+    color: var(--accent-primary);
+    padding: 4px 12px;
+    border-radius: 100px;
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.header-btn {
+    opacity: 0.7;
+    transition: all 0.2s;
+}
+.header-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    color: var(--accent-primary);
+}
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
 .setting.app-header {
     display: flex;
     justify-content: space-between;
@@ -673,12 +730,68 @@ body.light-mode ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
     transform: translateX(3px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
-.setting-row {
+/* Auth Portal styling */
+#auth-forms {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
+    flex-direction: column;
+    gap: 1rem;
 }
+.auth-btn-social {
+    background: white !important;
+    color: #1a1a1a !important;
+}
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 0.5rem 0;
+    opacity: 0.4;
+    font-size: 0.7rem;
+}
+.auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.auth-divider span {
+    padding: 0 10px;
+}
+.auth-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+#email-signup-btn {
+    font-size: 0.8rem;
+    color: var(--accent-primary);
+}
+.profile-card.mini {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+}
+#drawer-user-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-primary);
+}
+.profile-text {
+    display: flex;
+    flex-direction: column;
+}
+#drawer-user-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+#drawer-user-email {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+.hidden { display: none !important; }
 .btn-primary {
     width: 100%;
     background: var(--accent-primary);

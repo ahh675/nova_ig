@@ -41,7 +41,6 @@ const settingsDrawer = document.getElementById('settings-drawer');
 const closeDrawer = document.getElementById('close-drawer');
 const saveSettingsBtn = document.getElementById('save-all-settings');
 const drawerGroqKey = document.getElementById('drawer-groq-key');
-const drawerSecondaryKey = document.getElementById('drawer-secondary-key');
 const drawerFbKey = document.getElementById('drawer-fb-key');
 const drawerFbPid = document.getElementById('drawer-fb-pid');
 const drawerThemeToggle = document.getElementById('drawer-theme-toggle');
@@ -213,12 +212,6 @@ function populateVoiceList() {
 const fbConfig = window.NOVA_CONFIG ? window.NOVA_CONFIG.FIREBASE_CONFIG : null;
 const groqKey = window.NOVA_CONFIG ? window.NOVA_CONFIG.GROQ_API_KEY : '';
 
-// Initialize UI
-loadMemory(); 
-updateLockUI();
-updateNetworkStatus();
-populateVoiceList();
-
 // Start Firebase with highest priority config
 function getEffectiveFirebaseConfig() {
     const localKey = localStorage.getItem('nova_fb_key');
@@ -234,8 +227,20 @@ function getEffectiveFirebaseConfig() {
     return config.apiKey && config.projectId ? config : null;
 }
 
-const effectiveConfig = getEffectiveFirebaseConfig();
-if (effectiveConfig) initFirebase(effectiveConfig);
+// Initialize UI with safety
+try {
+    loadMemory(); 
+    updateLockUI();
+    updateNetworkStatus();
+    populateVoiceList();
+
+    const effectiveConfig = getEffectiveFirebaseConfig();
+    if (effectiveConfig) initFirebase(effectiveConfig);
+} catch (e) {
+    console.error("Nova Critical Init Error:", e);
+    statusText.textContent = "System Error. Voice Active.";
+}
+
 
 async function initFirebase(config) {
     try {
@@ -244,53 +249,68 @@ async function initFirebase(config) {
         }
         
         firebaseActive = true;
-        const fs = firebase.firestore();
-        const auth = firebase.auth();
         
-        indCloud.classList.add('active');
-        indCloud.title = "Cloud Active";
-        
-        // Auth State Observer
-        auth.onAuthStateChanged(user => {
-            const authBtn = document.getElementById('auth-btn');
-            const userDisplayName = document.getElementById('user-display-name');
-            const userEmail = document.getElementById('user-email');
-            const userPhoto = document.getElementById('user-photo');
+        // Auth Action (Google)
+        document.getElementById('google-login-btn').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            firebase.auth().signInWithPopup(provider).catch(e => {
+                console.error("Auth Error:", e);
+                statusText.textContent = "Auth Failed: " + e.message;
+            });
+        });
+
+        // Email Auth - Signup
+        document.getElementById('email-signup-btn').addEventListener('click', () => {
+            const email = document.getElementById('auth-email').value.trim();
+            const pass = document.getElementById('auth-password').value.trim();
+            if (!email || !pass) return statusText.textContent = "Enter email and password";
+            firebase.auth().createUserWithEmailAndPassword(email, pass).catch(e => {
+                statusText.textContent = "Signup Failed: " + e.message;
+            });
+        });
+
+        // Email Auth - Login
+        document.getElementById('email-login-btn').addEventListener('click', () => {
+            const email = document.getElementById('auth-email').value.trim();
+            const pass = document.getElementById('auth-password').value.trim();
+            if (!email || !pass) return statusText.textContent = "Enter email and password";
+            firebase.auth().signInWithEmailAndPassword(email, pass).catch(e => {
+                statusText.textContent = "Login Failed: " + e.message;
+            });
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            firebase.auth().signOut().then(() => location.reload());
+        });
+
+        // Auth State Observer (Enhanced)
+        firebase.auth().onAuthStateChanged(user => {
+            const profileSection = document.getElementById('logged-in-profile');
+            const authForms = document.getElementById('auth-forms');
+            const drawerName = document.getElementById('drawer-user-name');
+            const drawerEmail = document.getElementById('drawer-user-email');
+            const drawerPhoto = document.getElementById('drawer-user-photo');
 
             if (user) {
-                userDisplayName.textContent = user.displayName || "User";
-                userEmail.textContent = user.email;
-                if (user.photoURL) userPhoto.src = user.photoURL;
-                authBtn.textContent = "Logout";
+                profileSection.classList.remove('hidden');
+                authForms.classList.add('hidden');
+                drawerName.textContent = user.displayName || user.email.split('@')[0];
+                drawerEmail.textContent = user.email;
+                if (user.photoURL) drawerPhoto.src = user.photoURL;
                 indCloud.classList.add('active');
-                attachCloudSync(user); // Start real-time sync for this specific user
+                attachCloudSync(user);
             } else {
-                userDisplayName.textContent = "Guest Mode";
-                userEmail.textContent = "cloud-brain@nova.ai";
-                userPhoto.src = "https://ui-avatars.com/api/?name=Nova&background=00d2ff&color=fff";
-                authBtn.textContent = "Connect";
+                profileSection.classList.add('hidden');
+                authForms.classList.remove('hidden');
+                indCloud.classList.remove('active');
             }
         });
 
-        // Auth Action
-        document.getElementById('auth-btn').addEventListener('click', () => {
-            const currentAuth = firebase.auth();
-            if (currentAuth.currentUser) {
-                currentAuth.signOut().then(() => location.reload()); // Reload to clear session state safely
-            } else {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                currentAuth.signInWithPopup(provider).catch(e => {
-                    console.error("Auth Error:", e);
-                    statusText.textContent = "Auth Failed: " + e.message;
-                });
-            }
-        });
-
-        displayAndSpeak("Cloud Brain connected. Your memory is now universal.");
+        displayAndSpeak("Cloud Brain connected.");
     } catch (e) {
         console.error("Firebase Init Error:", e);
         indCloud.classList.remove('active');
-        indCloud.title = "Cloud Error";
     }
 }
 
@@ -1411,27 +1431,17 @@ resetBiometricsBtn.addEventListener('click', () => {
 // FEATURE: Settings Drawer & API Management
 // ============================================================
 menuToggle.addEventListener('click', () => {
-    // Fill values from memory/config
-    drawerGroqKey.value = localStorage.getItem('nova_groq_key') || (typeof CONFIG !== 'undefined' ? CONFIG.GROQ_API_KEY : '');
-    drawerSecondaryKey.value = localStorage.getItem('nova_secondary_key') || '';
-    drawerFbKey.value = localStorage.getItem('nova_fb_key') || (typeof CONFIG !== 'undefined' ? CONFIG.FIREBASE_CONFIG.apiKey : '');
-    drawerFbPid.value = localStorage.getItem('nova_fb_pid') || (typeof CONFIG !== 'undefined' ? CONFIG.FIREBASE_CONFIG.projectId : '');
+    // Fill values from localStorage or default config
+    drawerGroqKey.value = localStorage.getItem('nova_groq_key') || (window.NOVA_CONFIG ? window.NOVA_CONFIG.GROQ_API_KEY : '');
+    drawerFbKey.value = localStorage.getItem('nova_fb_key') || (window.NOVA_CONFIG ? window.NOVA_CONFIG.FIREBASE_CONFIG.apiKey : '');
+    drawerFbPid.value = localStorage.getItem('nova_fb_pid') || (window.NOVA_CONFIG ? window.NOVA_CONFIG.FIREBASE_CONFIG.projectId : '');
     
-    settingsDrawer.classList.add('active');
+    settingsDrawer.classList.toggle('open');
 });
 
 closeDrawer.addEventListener('click', () => settingsDrawer.classList.remove('active'));
 
 saveSettingsBtn.addEventListener('click', () => {
-    localStorage.setItem('nova_groq_key', drawerGroqKey.value.trim());
-    localStorage.setItem('nova_secondary_key', drawerSecondaryKey.value.trim());
-    localStorage.setItem('nova_fb_key', drawerFbKey.value.trim());
-    localStorage.setItem('nova_fb_pid', drawerFbPid.value.trim());
-    
-    // Play confirm sound
-    playBeep(880, 0.1);
-    
-    settingsDrawer.classList.remove('active');
     statusText.textContent = "Settings Saved. Reloading systems...";
     setTimeout(() => location.reload(), 1000);
 });
