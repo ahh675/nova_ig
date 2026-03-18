@@ -1,0 +1,25 @@
+{
+  "name": "Nova Assistant",
+  "short_name": "Nova",
+  "description": "Privacy-first personal voice assistant with AI intelligence.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#0a0a0a",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/128/3293/3293466.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3293/3293466.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
